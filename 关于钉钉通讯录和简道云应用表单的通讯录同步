@@ -5,6 +5,7 @@ import time
 
 
 class APIUtils:
+    
     verify=False and requests.packages.urllib3.disable_warnings()
     WEBSITE = "https://www.jiandaoyun.com"
     RETRY_IF_LIMITED = True
@@ -131,35 +132,24 @@ class APIUtils:
         return result
 
 if __name__ == '__main__':
-    #在简道云中获取
-    appId = 'appId'
-    entryId = 'entryId'
-    api_key = 'api_key'
-    #在钉钉中创建的应用获取（注意白名单ip）
-    AppKey='AppKey'
-    AppSecret='AppSecret'
-    api = APIUtils(appId, entryId, api_key, AppKey,AppSecret)   
+    appId = '5c11c5125f56760ddc1373de'
+    entryId = '5be3a4e5e0573a56e1a03ae0'
+    api_key = 'hXOUEjlq7fc9oaeq9e3wwQOT9b0UKIbh'
+    
+    AppKey='dingdnc32uyot8posfoe'
+    AppSecret='VD90gRaaEQK6AiaU_zTgZSUCd6CvIWhkgxEpUPbfNfcdTZsXXzYgLeqtsu-rOCgL'
+    api = APIUtils(appId, entryId, api_key, AppKey,AppSecret)     
 
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
     # 禁用安全请求警告
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
     # 获取表单字段
-    widgets =api.get_form_widgets()
+    #widgets =api.get_form_widgets()
     #print('获取表单字段：')
-    w= json.dumps(widgets, ensure_ascii=False)
+    #w=json.dumps(widgets, ensure_ascii=False)
     #print(w)
-    # 获取表单的所有数据进行删除
-    form_data = api.get_all_data([], {})
-    print('获取表单所有数据的id：')
-    for v in form_data:
-        delete_id=v['_id']
-        #print(delete_id)     
-        # 根据id删除表单的数据
-        result = api.delete_data(delete_id)
-        #print('删除单条数据：')
-        #print(result) 
-    
+
     
     #print('获取钉钉的数据：')
 
@@ -168,8 +158,11 @@ if __name__ == '__main__':
     a= json.dumps(access_token, ensure_ascii=False)
     b = json.loads(a)
     x =b.get('access_token')
-    # print('获取access_token:')
+    #print('获取access_token:')
     #print(x)
+
+    # 创建获取钉钉员工数据的数组
+    dindin_list=[[]]
 
     # 获取所有部门信息
     #print('获取部门信息')
@@ -178,7 +171,6 @@ if __name__ == '__main__':
     dep=api.get_department(url)
     c=json.dumps(dep,ensure_ascii=False)
     data=json.loads(c)
-    # print(c)
     f=data['department']
     # 循环获取部门的员工列表  
     for colour in f:
@@ -202,7 +194,7 @@ if __name__ == '__main__':
                 staff=api.get_users(user_url)
                 staffs=json.dumps(staff,ensure_ascii=False)
                 #print(staffs)
-                #姓名
+                 #姓名
                 names=staff['name']
                 name=(names).encode("utf-8")
                 #联系电话
@@ -222,7 +214,6 @@ if __name__ == '__main__':
                 depnames=api.get_depname(depname_url)
                 dpnames=json.dumps(depnames,ensure_ascii=False)
                 dp=json.loads(dpnames)
-                #print(dp)
                 #所属部门
                 dpname=(depnames['name']).encode("utf-8")
                 #print('员工信息：')
@@ -230,21 +221,23 @@ if __name__ == '__main__':
                 #print('姓名：'+name)
                 #print('部门：'+dpname)
                 #print('联系电话：'+mobile)
+                dindin_list.append([name,dpname])
+
                 # 根据员工姓名和部门判断是添加还是更新信息
                  
-                data = api.get_form_data('5b237267b22ab14884086cc9', 100, ['_widget_1545551667035', '_widget_1545551667066'], {
+                data = api.get_form_data('5b237267b22ab14884086cc9', 100, ['_widget_1539143984041', '_widget_1540369761364'], {
                         'rel': 'and',
                         'cond': [{
-                                'field': '_widget_1545551667035',
+                                'field': '_widget_1539143984041',
                                 'method': 'eq',
                                 'value': name
                                 },{
-                                'field':'_widget_1545551667066',
+                                'field': '_widget_1540369761364',
                                 'method': 'eq',
                                 'value': dpname
                                 }]
                         })
-                #print('按员工姓名和部门查询：')
+                print('按员工姓名和部门查询：')
                 d=json.dumps(data, ensure_ascii=False) 
                 for v in data:
                         up_id=v['_id']
@@ -253,25 +246,25 @@ if __name__ == '__main__':
                 if d=="[]":
                          # 创建单条数据
                         data = {
-                                '_widget_1545551666995': {
+                                '_widget_1537502636926': {
                                    'value':'无' 
                                 },
-                                '_widget_1545551667035': {
+                                '_widget_1539143984041': {
                                    'value': name
                                 },
-                                '_widget_1545551667051': {
+                                '_widget_1539320055414': {
                                    'value': mobile
                                 },
-                                '_widget_1545551667066': {
+                                '_widget_1540369761364': {
                                    'value':  dpname
                                 },
-                                '_widget_1545551667110': {
+                                '_widget_1539143983627': {
                                    'value': '无'
                                 },
-                                '_widget_1545551667127': {
+                                '_widget_1539143983583': {
                                    'value': '无'
                                 },
-                                '_widget_1545551667143': {
+                                '_widget_1539143983685': {
                                    'value': '无'
                                 }
                          }
@@ -282,32 +275,89 @@ if __name__ == '__main__':
                 else:
                          # 更新单条数据
                         update = {
-                                '_widget_1545551666995': {
-                                   'value':'无'
+                                '_widget_1537502636926': {
+                                    'value': '无'
                                 },
-                                '_widget_1545551667035': {
-                                   'value': name
+                                '_widget_1539143984041': {
+                                    'value': name
                                 },
-                                '_widget_1545551667051': {
-                                   'value': mobile
+                                '_widget_1539320055414': {
+                                    'value': mobile
                                 },
-                                '_widget_1545551667066': {
-                                   'value':  dpname
+                                '_widget_1540369761364': {
+                                    'value': dpname
                                 },
-                                '_widget_1545551667110': {
-                                   'value': '无'
+                                '_widget_1539143983627': {
+                                    'value': '无'
                                 },
-                                '_widget_1545551667127': {
-                                   'value': '无'
+                                '_widget_1539143983583': {
+                                    'value': '无'
                                 },
-                                '_widget_1545551667143': {
-                                   'value': '无'
-                                }}
+                                '_widget_1539143983685': {
+                                     'value': '无'
+                                }
+                        }
                         result = api.update_data(up_id, update)
-                       # print('更新员工信息！')
+                        #print('更新员工信息！')
                         r= json.dumps(result, ensure_ascii=False)
-                       # print(r)
+                        #print(r)
 
 
 
         #print
+    # 创建获取简道云员工信息的数组 
+    jdy_list=[[[]]]
+    #print jdy_list
+    # 获取所有表单数据
+    form_data = api.get_all_data([], {})
+    #print('所有表单数据：')
+    for v in form_data:
+        delete_id=v['_id']
+        #print(delete_id)
+        # 根据id查询数据
+        retrieve_data = api.retrieve_data(delete_id)
+        redate=json.dumps(retrieve_data, ensure_ascii=False)
+        #print('查询单条数据：')
+        name=retrieve_data['_widget_1539143984041']
+        dpname=retrieve_data['_widget_1540369761364']
+        userid=retrieve_data['_id']
+        na=json.dumps(name, ensure_ascii=False)
+        dpna=json.dumps(dpname, ensure_ascii=False)
+        id=json.dumps(userid, ensure_ascii=False)
+        username=eval(na)
+        depname=eval(dpna)
+        id=eval(id)
+        jdy_list.append([username,depname,id]) 
+    #print jdy_list
+
+    jdy_list.remove([[]])
+    dindin_list.remove([])
+    num=len(jdy_list)
+    num1=len(dindin_list)
+    print num  
+    print num1
+    jd=json.dumps(jdy_list, ensure_ascii=False)
+    din=json.dumps(dindin_list, ensure_ascii=False)
+    print(jd)
+    print(din)
+    for i in range(num):
+        for j in range(num1):
+                if jdy_list[i][0]==dindin_list[j][0] :
+                        if jdy_list[i][1]==dindin_list[j][1]:
+                                jdy_list[i][0]=1
+    print jdy_list
+    del_list=[[[]]]
+    for i in range(num):
+        if jdy_list[i][0]!=1:
+                del_list.append(jdy_list[i])
+    del_list.remove([[]])
+    jdy=json.dumps(del_list, ensure_ascii=False) 
+    print jdy
+    num2=len(del_list)
+    for i in range(num2):
+        id=del_list[i][2]
+        print id
+        # 根据id删除表单的数据
+        result = api.delete_data(id)
+        print('删除单条数据：')
+        print(result)
