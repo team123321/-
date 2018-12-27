@@ -237,7 +237,7 @@ if __name__ == '__main__':
                                 'value': dpname
                                 }]
                         })
-                print('按员工姓名和部门查询：')
+                #print('按员工姓名和部门查询：')
                 d=json.dumps(data, ensure_ascii=False) 
                 for v in data:
                         up_id=v['_id']
