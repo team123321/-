@@ -1,0 +1,345 @@
+#*-coding:UTF-8-*-
+import requests
+import json
+import time 
+import datetime
+import jieba
+import re
+
+class APIUtils:
+    verify=False and requests.packages.urllib3.disable_warnings()
+    RETRY_IF_LIMITED = True
+    url="https://oapi.dingtalk.com"
+    # 构造函数    
+    def __init__(self,AppKey,AppSecret):
+              self.url_getToke=APIUtils.url+'/gettoken?appkey='+AppKey+'&appsecret='+AppSecret        
+
+
+    # 发送http请求
+    def send_request(self, method, request_url, data):
+        
+        if method == 'GET':
+            res = requests.get(request_url, params=data,  verify=False)
+        if method == 'POST':
+            res = requests.post(request_url, data=json.dumps(data),  verify=False)
+        result = res.json()
+        if res.status_code >= 400:
+            if result['code'] == 8303 and APIUtils.RETRY_IF_LIMITED:
+
+                time.sleep(5)
+                return self.send_request(method, request_url, data)
+            else:
+                raise Exception('error', result)
+        else:
+            return result
+    
+    
+    # 调用钉钉接口
+
+    # 获取验证access_toke
+    def getToke(self,AppKey,AppSecret):
+        result =self.send_request('GET',self.url_getToke,{})
+        return result
+
+    #  获取审批实例id
+    def get_data(self,url):
+        result =self.send_request('GET',url,{})
+        return result
+
+    # 根据审批实例id获取单个审批
+    def get_approver(self,url):
+        result=self.send_request('GET',url,{})
+        return result
+    
+    # 获取钉钉部分日志
+    def get_log(self,url):
+        result=self.send_request('GET',url,{})
+        return result
+
+if __name__ == '__main__':
+    
+    AppKey='dingdnc32uyot8posfoe'
+    AppSecret='VD90gRaaEQK6AiaU_zTgZSUCd6CvIWhkgxEpUPbfNfcdTZsXXzYgLeqtsu-rOCgL'
+    api = APIUtils( AppKey,AppSecret)   
+
+    from requests.packages.urllib3.exceptions import InsecureRequestWarning
+    # 禁用安全请求警告
+    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+    
+    #file_handle.write('hello') 
+    #print('获取钉钉的数据：')
+
+    # 获取钉钉的数据
+    access_token=api.getToke(AppKey,AppSecret)
+    a= json.dumps(access_token, ensure_ascii=False)
+    b = json.loads(a)
+    x =b.get('access_token')
+    #print('获取access_token:')
+    #print(x)
+    #print a
+    access=str(x)
+    
+    #最近一周的审批和日志
+    # 结束时间
+    now=datetime.datetime.now()
+    d2 = datetime.datetime.strptime(now.strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S')
+    print('当前日期：')
+    print d2
+
+    #print('当前日期的时间戳：')
+    end_time =str(int(time.time())*1000)
+    #print end_time
+    #print
+    # 起始时间
+    #print('7天前的日期为：')
+    delta=datetime.timedelta(days=7)
+    start=d2-delta
+    #print start
+
+    #print('7天前的日期的时间戳：')
+    start_time=str(int(time.mktime(start.timetuple()))*1000)
+    #print start_time
+
+    #获取钉钉的通用审批数据
+    # 审批流的process_code
+    process_code='PROC-EF6YCS6WO2-6EG81H7NR7RCC0KSSAGW3-HELPSALI-5I'
+    cursor='0'
+    size='10' 
+    
+    #打开txt文件进行写入数据
+    file_handle=open('/home/yyh/dindin_log/week_log/Approval_log.txt',mode='w')
+    while cursor!=-1:
+        url="https://oapi.dingtalk.com/topapi/processinstance/listids?access_token="+access+"&process_code="+process_code+"&start_time="+start_time+"&end_time="+end_time+"&cursor="+cursor+"&size="+size
+        data=api.get_data(url)
+        c=json.dumps(data,ensure_ascii=False)
+        #print data
+        result=data['result']
+        if 'next_cursor' in result:
+                cursor=str(result['next_cursor'])
+        if 'next_cursor' not in result:
+                cursor=-1
+            
+        #获取审批详情
+        process_instance_id=data['result']['list']
+        for i in process_instance_id:
+                proid=i
+                app_url="https://oapi.dingtalk.com/topapi/processinstance/get?access_token="+access+"&process_instance_id="+proid
+                approver=api.get_approver(app_url)
+                ap=json.dumps(approver,ensure_ascii=False)
+                #print(ap)
+                #print
+                form_component_values=approver['process_instance']['form_component_values']
+                value=json.dumps(form_component_values,ensure_ascii=False)
+                #print value
+                #print
+                a= form_component_values[0]['name']
+                b= form_component_values[0]['value']
+                c= form_component_values[1]['name']
+                d= form_component_values[1]['value']
+                file_handle.write(b.encode('utf-8')+':'+d.encode('utf-8')+'\n')
+    
+    file_handle.close()
+   
+    # 打开指定日志的txt文件进行存储
+    # 打开存储‘派店长日报’的txt文件
+    days_log=open('/home/yyh/dindin_log/week_log/OptimaStoreManager_log.txt',mode='w')      
+    # 模板名称
+    template_name='欧派店长日报'
+    cursor='0'
+    size='20'
+    log_url="https://oapi.dingtalk.com/topapi/report/list?access_token="+access+"&start_time="+start_time+"&end_time="+end_time+"&template_name="+template_name+"&cursor="+cursor+"&size="+size
+    log_data=api.get_log(log_url)
+    #log=json.dumps(log_data,ensure_ascii=False)  
+    data_list=log_data['result']['data_list']
+    #print json.dumps(data_list[0],ensure_ascii=False)
+    for i in data_list:
+        contents=i['contents']
+        #print json.dumps(contents,ensure_ascii=False)
+        for j in contents:
+                value=j['value']
+                va=re.sub('[\r\n\t]', '', value)
+                days_log.write(va.encode('utf-8')+'\n')   
+    #判断是否有下一页
+    #存在继续查找并添加
+    has_more=log_data['result']['has_more']
+    more=json.dumps(has_more,ensure_ascii=False)
+    #print has_more
+     
+    while has_more==True:
+        cursor=str(log_data['result']['next_cursor'])
+        log_url="https://oapi.dingtalk.com/topapi/report/list?access_token="+access+"&start_time="+start_time+"&end_time="+end_time+"&template_name="+template_name+"&cursor="+cursor+"&size="+size
+        log_data=api.get_log(log_url)
+        log=json.dumps(log_data,ensure_ascii=False)
+        has_more=log_data['result']['has_more']
+        #print log
+        data_list=log_data['result']['data_list']
+
+        for i in data_list:
+                contents=i['contents']
+                #print json.dumps(contents,ensure_ascii=False)
+                for j in contents:
+                        value=j['value']
+                        va=re.sub('[\r\n\t]', '', value)
+                        days_log.write(va.encode('utf-8')+'\n')
+    # 关闭文件
+    days_log.close()    
+    
+
+
+     # 打开存储‘销售每日总结  ’的txt文件
+    days_log=open('/home/yyh/dindin_log/week_log/Sale_log.txt',mode='w')
+    # 模板名称
+    template_name='销售每日总结'
+    cursor='0'
+    size='20'
+    has_more=True
+    while has_more==True:
+        log_url="https://oapi.dingtalk.com/topapi/report/list?access_token="+access+"&start_time="+start_time+"&end_time="+end_time+"&template_name="+template_name+"&cursor="+cursor+"&size="+size
+        log_data=api.get_log(log_url)
+        log=json.dumps(log_data,ensure_ascii=False)
+        has_more=log_data['result']['has_more']
+        #print log
+        data_list=log_data['result']['data_list']
+        cursor=str(log_data['result']['next_cursor'])
+        for i in data_list:
+                contents=i['contents']
+                #print json.dumps(contents,ensure_ascii=False)
+                for j in contents:
+                        value=j['value']
+                        va=re.sub('[\r\n\t]', '', value)
+                        days_log.write(va.encode('utf-8')+'\n\n')
+
+    # 关闭文件
+    days_log.close()
+    
+     # 打开存储‘市场部工作报表’的txt文件
+    days_log=open('/home/yyh/dindin_log/week_log/MarketingDepartment_log.txt',mode='w')
+    # 模板名称
+    template_name='市场部工作报表'
+    cursor='0'
+    size='20'
+    has_more=True
+    while has_more==True:
+        log_url="https://oapi.dingtalk.com/topapi/report/list?access_token="+access+"&start_time="+start_time+"&end_time="+end_time+"&template_name="+template_name+"&cursor="+cursor+"&size="+size
+        log_data=api.get_log(log_url)
+        log=json.dumps(log_data,ensure_ascii=False)
+        has_more=log_data['result']['has_more']
+        #print log
+        data_list=log_data['result']['data_list']
+        cursor=str(log_data['result']['next_cursor'])
+        for i in data_list:
+                contents=i['contents']
+                #print json.dumps(contents,ensure_ascii=False)
+                for j in contents:
+                        value=j['value']
+                        va=re.sub('[\r\n\t]', '', value)
+                        days_log.write(va.encode('utf-8')+'\n\n')
+
+    # 关闭文件
+    days_log.close()
+
+    #打印文本中高频词语
+    #指定存储高频词语的文本
+    log=open('/home/yyh/dindin_log/week_log/log.txt',mode='w')    
+    #读取指定文本数据
+    log.write(str(d2)+'\n')
+    #审批的高频词语
+    txt = open('/home/yyh/dindin_log/week_log/Approval_log.txt', 'r').read()
+    words = jieba.lcut(txt)     # 使用精确模式对文本进行分词
+    counts = {}     # 通过键值对的形式存储词语及其出现的次数
+
+    for word in words:
+        if  len(word) == 1:    # 单个词语不计算在内
+                continue
+        else:
+                counts[word] = counts.get(word, 0) + 1    # 遍历所有词语，每出现一次其对应的值加 1
+
+    items = list(counts.items())#将键值对转换成列表
+    items.sort(key=lambda x: x[1], reverse=True)    # 根据词语出现的次数进行从大到小排序
+    ite=json.dumps(items,ensure_ascii=False)
+    #print('最近一周审批中的高频词语：')
+    log.write('最近一周审批中的高频词语：\n')
+    for i in range(10):
+        word, count = items[i]
+        #print word, count
+        num =str(count)
+        log.write(word.encode('utf-8')+':'+num.encode('utf-8')+'\n')
+    log.close()    
+    open('/home/yyh/dindin_log/week_log/Approval_log.txt', 'r').close()    
+
+    #打开log.txt文件进行追加数据
+    log=open('/home/yyh/dindin_log/week_log/log.txt',mode='a')
+    
+    #存储‘欧派店长日报 ’的高频词汇    
+    txt = open("/home/yyh/dindin_log/week_log/OptimaStoreManager_log.txt", "r").read()
+    words = jieba.lcut(txt)     # 使用精确模式对文本进行分词
+    counts = {}     # 通过键值对的形式存储词语及其出现的次数
+
+    for word in words:
+        if  len(word) == 1:     # 单个词语不计算在内
+                continue
+        else:
+                counts[word] = counts.get(word, 0) + 1    # 遍历所有词语，每出现一次其对应的值加 1
+
+    items = list(counts.items())#将键值对转换成列表
+    items.sort(key=lambda x: x[1], reverse=True)    # 根据词语出现的次数进行从大到小排序
+    ite=json.dumps(items,ensure_ascii=False)
+    #print('最近一周日报中的高频词语：')
+    log.write('\n最近一周“欧派店长日报”中的高频词语：\n')
+    for i in range(10):
+        word, count = items[i]
+        #print word, count
+        num =str(count)
+        log.write(word.encode('utf-8')+':'+num.encode('utf-8')+'\n')
+
+    open("/home/yyh/dindin_log/week_log/OptimaStoreManager_log.txt", "r").close()
+
+    
+    #存储‘销售每日总结’的高频词汇
+    txt = open("/home/yyh/dindin_log/week_log/Sale_log.txt", "r").read()
+    words = jieba.lcut(txt)     # 使用精确模式对文本进行分词
+    counts = {}     # 通过键值对的形式存储词语及其出现的次数
+
+    for word in words:
+        if  len(word) == 1:     # 单个词语不计算在内
+                continue
+        else:
+                counts[word] = counts.get(word, 0) + 1    # 遍历所有词语，每出现一次其对应的值加 1
+
+    items = list(counts.items())#将键值对转换成列表
+    items.sort(key=lambda x: x[1], reverse=True)    # 根据词语出现的次数进行从大到小排序
+    ite=json.dumps(items,ensure_ascii=False)
+    #print('最近一周日报中的高频词语：')
+    log.write('\n最近一周“销售每日总结”中的高频词语：\n')
+    for i in range(10):
+        word, count = items[i]
+        #print word, count
+        num =str(count)
+        log.write(word.encode('utf-8')+':'+num.encode('utf-8')+'\n')    
+    open("/home/yyh/dindin_log/week_log/Sale_log.txt", "r").close()
+
+    #存储‘市场部工作报表’的高频词汇
+    txt = open("/home/yyh/dindin_log/week_log/MarketingDepartment_log.txt", "r").read()
+    words = jieba.lcut(txt)     # 使用精确模式对文本进行分词
+    counts = {}     # 通过键值对的形式存储词语及其出现的次数
+
+    for word in words:
+        if  len(word) == 1:     # 单个词语不计算在内
+                continue
+        else:
+                counts[word] = counts.get(word, 0) + 1    # 遍历所有词语，每出现一次其对应的值加 1
+
+    items = list(counts.items())#将键值对转换成列表
+    items.sort(key=lambda x: x[1], reverse=True)    # 根据词语出现的次数进行从大到小排序
+    ite=json.dumps(items,ensure_ascii=False)
+    #print('最近一周日报中的高频词语：')
+    log.write('\n最近一周“市场部工作报表”中的高频词语：\n')
+    for i in range(10):
+        word, count = items[i]
+        #print word, count
+        num =str(count)
+        log.write(word.encode('utf-8')+':'+num.encode('utf-8')+'\n')
+    log.close()
+    open("/home/yyh/dindin_log/week_log/MarketingDepartment_log.txt", "r").close()
+    print('脚本运行完成！')
