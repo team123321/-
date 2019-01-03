@@ -58,8 +58,8 @@ class APIUtils:
 
 if __name__ == '__main__':
     
-    AppKey='dingdnc32uyot8posfoe'
-    AppSecret='VD90gRaaEQK6AiaU_zTgZSUCd6CvIWhkgxEpUPbfNfcdTZsXXzYgLeqtsu-rOCgL'
+    AppKey='AppKey'
+    AppSecret='AppSecret'
     api = APIUtils( AppKey,AppSecret)   
 
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
